@@ -1,0 +1,45 @@
+import gym
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+# Create CartPole environment
+env = gym.make("CartPole-v1")
+
+# Define neural network model for policy approximation
+model = models.Sequential([
+    layers.Dense(24, activation='relu', input_shape=(4,)),
+    layers.Dense(24, activation='relu'),
+    layers.Dense(2, activation='softmax')
+])
+
+# Compile model
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01),
+              loss='sparse_categorical_crossentropy')
+
+# Define function for selecting action
+def select_action(state):
+    action_probs = model.predict(state[np.newaxis, :])[0]
+    action = np.random.choice(len(action_probs), p=action_probs)
+    return action
+
+# Training loop
+for episode in range(1000):
+    state = env.reset()
+    episode_reward = 0
+    with tf.GradientTape() as tape:
+        for timestep in range(1, 10000):
+            action = select_action(state)
+            next_state, reward, done, _ = env.step(action)
+            episode_reward += reward
+            if done:
+                break
+            state = next_state
+
+        # Calculate loss and optimize
+        loss = -1 * episode_reward
+        gradients = tape.gradient(loss, model.trainable_variables)
+        model.optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+        # Print episode details
+        if episode % 50 == 0:
+            print(f"Episode: {episode}, Reward: {episode_reward}")
